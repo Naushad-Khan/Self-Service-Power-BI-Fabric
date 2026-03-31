@@ -1,0 +1,158 @@
+-- DAX Script to create table group like information automated using INFO.VIEW DAX functions--
+-- Credit to David Kofod Hanna --
+-- LinkedIn https://www.linkedin.com/in/davidkofod/ --
+-- 11th April 2025--
+
+EVALUATE
+
+// Define the name of this table to avoid self-reference
+VAR _ThisTableName = "Table Group DAX"
+
+//
+// FIELD PARAMETERS TABLES
+//
+VAR _FieldParameters =
+    SELECTCOLUMNS(
+        FILTER(
+            INFO.VIEW.TABLES(),
+            CONTAINSSTRING([Expression], "NAMEOF") &&
+            [Name] <> _ThisTableName
+        ),
+        "Type", "Field Parameters",
+        "Table Name", [Name],
+        "Description", "Dynamic switch between measure or attributes",
+        "Order", 5
+    )
+
+//
+// NUMERIC PARAMETERS
+//
+VAR _NumericParameter =
+    SELECTCOLUMNS(
+        FILTER(
+            INFO.VIEW.TABLES(),
+            CONTAINSSTRING([Expression], "GENERATE") &&
+            [Name] <> _ThisTableName
+        ),
+        "Type", "Numeric Parameter",
+        "Table Name", [Name],
+        "Description", "Dynamic slider for end users to select",
+        "Order", 6
+    )
+
+//
+// CALCULATION GROUPS
+//
+VAR _CalculationGroup =
+    SELECTCOLUMNS(
+        FILTER(
+            INFO.VIEW.TABLES(),
+            [CalculationGroupPrecedence] >= 1 &&
+            [Name] <> _ThisTableName
+        ),
+        "Type", "Calculation Group",
+        "Table Name", [Name],
+        "Description", "Dynamic calculation items",
+        "Order", 4
+    )
+
+//
+// DOCUMENTATION TABLES
+//
+VAR _ModelDoc =
+    SELECTCOLUMNS(
+        FILTER(
+            INFO.VIEW.TABLES(),
+            CONTAINSSTRING([Expression], "INFO.VIEW") &&
+            [Name] <> _ThisTableName
+        ),
+        "Type", "Model Documentation",
+        "Table Name", [Name],
+        "Description", "Documentation with INFO.VIEW functions",
+        "Order", 7
+    )
+
+//
+// FACT TABLES (many side of relationship)
+//
+VAR _Fact = 
+    DISTINCT(
+        SELECTCOLUMNS(
+            INFO.VIEW.RELATIONSHIPS(),
+            "Type", "Fact",
+            "Table Name", [FromTable],
+            "Description", "Fact with many-side relationship",
+            "Order", 2
+        )
+    )
+
+//
+// DIMENSION TABLES (one side of relationship)
+//
+VAR _Dim =
+    DISTINCT(
+        SELECTCOLUMNS(
+            INFO.VIEW.RELATIONSHIPS(),
+            "Type", "Dimension",
+            "Table Name", [ToTable],
+            "Description", "Dimension with one-side relationship",
+            "Order", 3
+        )
+    )
+
+//
+// GET LIST OF ALL TABLES ALREADY CLASSIFIED ABOVE
+//
+VAR _AllDefinedTables =
+    UNION(
+        SELECTCOLUMNS(_FieldParameters, "Table Name", [Table Name]),
+        SELECTCOLUMNS(_NumericParameter, "Table Name", [Table Name]),
+        SELECTCOLUMNS(_CalculationGroup, "Table Name", [Table Name]),
+        SELECTCOLUMNS(_ModelDoc, "Table Name", [Table Name]),
+        SELECTCOLUMNS(_Fact, "Table Name", [Table Name]),
+        SELECTCOLUMNS(_Dim, "Table Name", [Table Name])
+    )
+
+//
+// GET ALL MODEL TABLES (excluding this one)
+//
+VAR _AllTables =
+    SELECTCOLUMNS(
+        FILTER(
+            INFO.VIEW.TABLES(),
+            [Name] <> _ThisTableName
+        ),
+        "Table Name", [Name]
+    )
+
+//
+// FIND UNCLASSIFIED TABLES (implied as MEASURE GROUPS)
+//
+VAR _MeasureGroups =
+    EXCEPT(_AllTables, _AllDefinedTables)
+
+VAR _RemainingMeasureGroups =
+    SELECTCOLUMNS(
+        _MeasureGroups,
+        "Type", "Measure Group",
+        "Table Name", [Table Name],
+        "Description", "Classified as Measure Group",
+        "Order", 1
+    )
+
+//
+// FINAL UNION OF ALL TABLE GROUP TYPES
+//
+VAR _Result =
+    UNION(
+        _FieldParameters,
+        _NumericParameter,
+        _CalculationGroup,
+        _ModelDoc,
+        _Fact,
+        _Dim,
+        _RemainingMeasureGroups
+    )
+
+RETURN
+    _Result ORDER BY [Order] ASC
