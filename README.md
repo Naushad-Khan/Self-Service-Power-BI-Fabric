@@ -1,4 +1,4 @@
-# 👋 Welcome to My Power BI & Fabric Self-Service Journey
+# 👋 Welcome to my Power BI & Fabric Self-Service Journey
 
 
 ## About this repo
@@ -15,6 +15,9 @@ Here you'll find:
   - Governance practices
   - Modeling best practices
   - Get started with PBIP, VS Code and Git
+  - Skills and agent instructions
+  - Custom Visuals
+  - #DocumentationCanBeFun
 
 ---
 
